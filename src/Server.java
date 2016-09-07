@@ -3,6 +3,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.sql.PreparedStatement;
 
 /**
  * Created by cj on 07/09/16.
@@ -26,16 +27,16 @@ public class Server {
     private void sendMsgToClient(String msg) throws IOException {
         if (this.udpSocket == null || clientPort <= 0) return;
         byte[] responseMsg = msg.getBytes();
-        DatagramPacket packet = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
-        System.out.println("Sending "+ msg + "...");
+        DatagramPacket packet = new DatagramPacket(responseMsg, responseMsg.length, clientAddress, clientPort);
+        System.out.println("Sending " + msg + "...");
         udpSocket.send(packet);
     }
 
-    private void sendMsgTo(String msg,InetAddress targetAddress,int targetPort) throws IOException {
+    private void sendMsgTo(String msg, InetAddress targetAddress, int targetPort) throws IOException {
         if (this.udpSocket == null || targetAddress == null || targetPort <= 0) return;
         byte[] responseMsg = msg.getBytes();
-        DatagramPacket packet = new DatagramPacket(responseMsg,responseMsg.length, targetAddress,targetPort);
-        System.out.println("Sending "+ msg + "...");
+        DatagramPacket packet = new DatagramPacket(responseMsg, responseMsg.length, targetAddress, targetPort);
+        System.out.println("Sending " + msg + "...");
         udpSocket.send(packet);
     }
 
@@ -51,19 +52,19 @@ public class Server {
             boolean runLoop = true;
             while (runLoop) {
 
-                request = new DatagramPacket(buffer,buffer.length);
+                request = new DatagramPacket(buffer, buffer.length);
                 udpSocket.receive(request);
                 currentAddr = request.getAddress();
                 currentPort = request.getPort();
                 System.out.println("Current state: " + state);
                 System.out.println("Incoming msg: " + new String(buffer).trim());
-                switch (state){
+                switch (state) {
 
-                    case FREE:{
-                        if (!Protocol.checkMsg("HELLO",request)){
+                    case FREE: {
+                        if (!Protocol.checkMsg("HELLO", request)) {
                             runLoop = false;
                             System.out.println("Wrong Protocol tag");
-                            sendMsgTo("ERROR",currentAddr,currentPort);
+                            sendMsgTo("ERROR", currentAddr, currentPort);
                             // implement error handling
                             break;
                         }
@@ -74,14 +75,14 @@ public class Server {
                         state = SessionState.HANDSHAKE;
                         break;
                     }
-                    case HANDSHAKE:{
+                    case HANDSHAKE: {
                         if (clientAddress == null || (clientAddress.equals(currentAddr) && clientPort == request.getPort()) == false) {
                             System.out.println("Bussy");
-                            sendMsgTo("ERROR",currentAddr,currentPort);
+                            sendMsgTo("ERROR", currentAddr, currentPort);
                             // busy signal
                             break;
                         }
-                        if (!Protocol.checkMsg("START",request)){
+                        if (!Protocol.checkMsg("START", request)) {
                             runLoop = false;
                             System.out.println("Wrong Protocol tag");
                             sendMsgToClient("ERROR");
@@ -98,21 +99,24 @@ public class Server {
                     }
                     case INSESSION:
                         if (game == null) {
-                            sendMsgTo("ERROR",currentAddr,currentPort);
+                            sendMsgTo("ERROR", currentAddr, currentPort);
                             state = SessionState.FREE;
                             break;
                         }
                         if (clientAddress == null || (clientAddress.equals(currentAddr) && clientPort == request.getPort()) == false) {
                             System.out.println("Bussy");
-                            sendMsgTo("ERROR",currentAddr,currentPort);
+                            sendMsgTo("ERROR", currentAddr, currentPort);
                             //sendMsgToClient("BUSY");
                             // busy signal
                             break;
                         }
-                        // pars number
-                        int guess = 4;
-                        String result = game.guess(guess);
-                        sendMsgToClient(result);
+
+                        if (Protocol.isGuessCommand(request)) {
+                            Integer guess = Protocol.parseGuess(request);
+                            // pars number
+                            String result = game.guess(guess.intValue());
+                            sendMsgToClient(result);
+                        }
                         break;
                     case SHUTDOWN:
                         break;
