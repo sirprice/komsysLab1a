@@ -6,6 +6,7 @@ import java.net.DatagramPacket;
 public class Protocol {
 
     public static final String GUESS = "GUESS";
+    public static final String TERMINATE = "TERMINATE";
 
     public static boolean checkMsg(String tag, DatagramPacket packet){
         String remoteMsg = new String(packet.getData(),0,packet.getLength());
@@ -13,7 +14,15 @@ public class Protocol {
         return remoteMsg.equals(tag);
     }
 
+    public static boolean isTerminateCommand(DatagramPacket packet) {
+        String input = new String(packet.getData()).trim();
+        int i = input.indexOf(' ');
+        String command = input.substring(0, i);
 
+        //String rest = input.substring(i);
+
+        return command.toUpperCase().equals(TERMINATE);
+    }
 
     public static boolean isGuessCommand(DatagramPacket packet) {
         String input = new String(packet.getData()).trim();
