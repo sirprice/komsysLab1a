@@ -13,7 +13,7 @@ public class Server {
 
 
     private int port;
-    private SessionState state;
+    private SessionState state = SessionState.FREE;
 
     public Server(int port) {
         this.port = port;
@@ -29,8 +29,8 @@ public class Server {
             udpSocket = new DatagramSocket(this.port);
             byte[] buffer = new byte[1024];
             DatagramPacket request, response;
-
-            while (true) {
+            boolean runLoop = true;
+            while (runLoop) {
 
                 request = new DatagramPacket(buffer,buffer.length);
                 udpSocket.receive(request);
@@ -40,6 +40,8 @@ public class Server {
 
                     case FREE:{
                         if (!Protocol.checkMsg("HELLO",request)){
+                            runLoop = false;
+                            System.out.println("Wrong Protocol tag");
                             // implement error handling
                             break;
                         }
@@ -51,7 +53,12 @@ public class Server {
 
                         response = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
                         udpSocket.send(response);
+                        break;
                     }
+                    default:
+                        runLoop = false;
+                        System.out.println("Bad state:" + state.toString());
+                        break;
                 }
             }
         } catch (SocketException se) {
