@@ -26,8 +26,11 @@ public class Protocol {
 
     public static boolean isGuessCommand(DatagramPacket packet) {
         String input = new String(packet.getData()).trim();
+        System.out.println("isGuessCommand: input:" + input);
         int i = input.indexOf(' ');
         String command = input.substring(0, i);
+        System.out.println("isGuessCommand: command:" + command);
+        System.out.println("isGuessCommand: input2:" + input);
 
         //String rest = input.substring(i);
 
@@ -45,7 +48,7 @@ public class Protocol {
 
 
         i = input.indexOf(' ');
-        String second = input.substring((input.indexOf(command)+1), i);
+        String second = input.substring((input.indexOf((command)+command.length())+1), i);
         System.out.println("Second word: "+second);
 
         try {

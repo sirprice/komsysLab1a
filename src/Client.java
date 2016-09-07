@@ -25,7 +25,7 @@ public class Client {
             while (running) {
 
 
-                String msg = scanner.next();
+                String msg = scanner.nextLine();
                 if (msg.equals("TERMINATE")){
                     running = false;
                 }
