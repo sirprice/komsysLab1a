@@ -12,7 +12,7 @@ public class Server {
     private enum SessionState {FREE, HANDSHAKE, INSESSION, SHUTDOWN}
 
 
-    private int port;
+    private int port = 0;
     private SessionState state = SessionState.FREE;
 
     public Server(int port) {
@@ -21,9 +21,11 @@ public class Server {
     }
 
     public void start() {
-            int clientPort;
+            int clientPort = 0;
             DatagramSocket udpSocket = null;
-            InetAddress clientAddress, current;
+            InetAddress clientAddress = null;
+        InetAddress current = null;
+        GuessGame game = null;
         try {
 
             udpSocket = new DatagramSocket(this.port);
@@ -35,7 +37,8 @@ public class Server {
                 request = new DatagramPacket(buffer,buffer.length);
                 udpSocket.receive(request);
                 current = request.getAddress();
-
+                System.out.println("Current state: " + state);
+                System.out.println("Incoming msg: " + new String(buffer).trim());
                 switch (state){
 
                     case FREE:{
@@ -50,11 +53,38 @@ public class Server {
                         clientPort = request.getPort();
 
                         byte[] responseMsg = "OK".getBytes();
-
                         response = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
+                        System.out.println("Sending ok...");
                         udpSocket.send(response);
+                        state = SessionState.HANDSHAKE;
                         break;
                     }
+                    case HANDSHAKE:{
+                        if (clientAddress == null || (clientAddress.equals(current) && clientPort == request.getPort()) == false) {
+                            System.out.println("Bussy");
+                            // busy signal
+                            break;
+                        }
+                        if (!Protocol.checkMsg("START",request)){
+                            runLoop = false;
+                            System.out.println("Wrong Protocol tag");
+                            // implement error handling
+                            state = SessionState.FREE;
+                            break;
+                        }
+
+                        // Do game code
+                        byte[] responseMsg = "READY".getBytes();
+                        response = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
+                        System.out.println("Sending READY...");
+                        udpSocket.send(response);
+                        state = SessionState.INSESSION;
+                        break;
+                    }
+                    case INSESSION:
+                        break;
+                    case SHUTDOWN:
+                        break;
                     default:
                         runLoop = false;
                         System.out.println("Bad state:" + state.toString());
