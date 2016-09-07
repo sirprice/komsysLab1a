@@ -12,23 +12,40 @@ public class Server {
     private enum SessionState {FREE, HANDSHAKE, INSESSION, SHUTDOWN}
 
 
-    private int port = 0;
+    private int serverPort = 0;
     private SessionState state = SessionState.FREE;
+    int clientPort = 0;
+    DatagramSocket udpSocket = null;
+    InetAddress clientAddress = null;
 
     public Server(int port) {
-        this.port = port;
+        this.serverPort = port;
 
     }
 
+    private void sendMsgToClient(String msg) throws IOException {
+        if (this.udpSocket == null || clientPort <= 0) return;
+        byte[] responseMsg = msg.getBytes();
+        DatagramPacket packet = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
+        System.out.println("Sending "+ msg + "...");
+        udpSocket.send(packet);
+    }
+
+    private void sendMsgTo(String msg,InetAddress targetAddress,int targetPort) throws IOException {
+        if (this.udpSocket == null || targetAddress == null || targetPort <= 0) return;
+        byte[] responseMsg = msg.getBytes();
+        DatagramPacket packet = new DatagramPacket(responseMsg,responseMsg.length, targetAddress,targetPort);
+        System.out.println("Sending "+ msg + "...");
+        udpSocket.send(packet);
+    }
+
     public void start() {
-            int clientPort = 0;
-            DatagramSocket udpSocket = null;
-            InetAddress clientAddress = null;
-        InetAddress current = null;
+        InetAddress currentAddr = null;
+        int currentPort = 0;
         GuessGame game = null;
         try {
 
-            udpSocket = new DatagramSocket(this.port);
+            udpSocket = new DatagramSocket(this.serverPort);
             byte[] buffer = new byte[1024];
             DatagramPacket request, response;
             boolean runLoop = true;
@@ -36,7 +53,8 @@ public class Server {
 
                 request = new DatagramPacket(buffer,buffer.length);
                 udpSocket.receive(request);
-                current = request.getAddress();
+                currentAddr = request.getAddress();
+                currentPort = request.getPort();
                 System.out.println("Current state: " + state);
                 System.out.println("Incoming msg: " + new String(buffer).trim());
                 switch (state){
@@ -45,43 +63,56 @@ public class Server {
                         if (!Protocol.checkMsg("HELLO",request)){
                             runLoop = false;
                             System.out.println("Wrong Protocol tag");
+                            sendMsgTo("ERROR",currentAddr,currentPort);
                             // implement error handling
                             break;
                         }
 
-                        clientAddress = current;
-                        clientPort = request.getPort();
-
-                        byte[] responseMsg = "OK".getBytes();
-                        response = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
-                        System.out.println("Sending ok...");
-                        udpSocket.send(response);
+                        clientAddress = currentAddr;
+                        clientPort = currentPort;
+                        sendMsgToClient("OK");
                         state = SessionState.HANDSHAKE;
                         break;
                     }
                     case HANDSHAKE:{
-                        if (clientAddress == null || (clientAddress.equals(current) && clientPort == request.getPort()) == false) {
+                        if (clientAddress == null || (clientAddress.equals(currentAddr) && clientPort == request.getPort()) == false) {
                             System.out.println("Bussy");
+                            sendMsgTo("ERROR",currentAddr,currentPort);
                             // busy signal
                             break;
                         }
                         if (!Protocol.checkMsg("START",request)){
                             runLoop = false;
                             System.out.println("Wrong Protocol tag");
+                            sendMsgToClient("ERROR");
                             // implement error handling
                             state = SessionState.FREE;
                             break;
                         }
 
                         // Do game code
-                        byte[] responseMsg = "READY".getBytes();
-                        response = new DatagramPacket(responseMsg,responseMsg.length, clientAddress,clientPort);
-                        System.out.println("Sending READY...");
-                        udpSocket.send(response);
+                        game = new GuessGame();
+                        sendMsgToClient("READY");
                         state = SessionState.INSESSION;
                         break;
                     }
                     case INSESSION:
+                        if (game == null) {
+                            sendMsgTo("ERROR",currentAddr,currentPort);
+                            state = SessionState.FREE;
+                            break;
+                        }
+                        if (clientAddress == null || (clientAddress.equals(currentAddr) && clientPort == request.getPort()) == false) {
+                            System.out.println("Bussy");
+                            sendMsgTo("ERROR",currentAddr,currentPort);
+                            //sendMsgToClient("BUSY");
+                            // busy signal
+                            break;
+                        }
+                        // pars number
+                        int guess = 4;
+                        String result = game.guess(guess);
+                        sendMsgToClient(result);
                         break;
                     case SHUTDOWN:
                         break;
