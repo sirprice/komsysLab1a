@@ -49,7 +49,7 @@ public class Server {
                             break;
                         }
 
-                        clientAddress = current;
+                        clientAddress  = current;
                         clientPort = request.getPort();
 
                         byte[] responseMsg = "OK".getBytes();

@@ -1,8 +1,5 @@
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.util.Scanner;
 
 /**
@@ -11,6 +8,7 @@ import java.util.Scanner;
 public class Client {
     InetAddress serverAddress;
     int serverPort;
+
     public Client(InetAddress address, int port) {
         this.serverAddress = address;
         this.serverPort = port;
@@ -19,25 +17,39 @@ public class Client {
     public void start() {
         DatagramSocket socket = null;
         Scanner scanner = new Scanner(System.in);
+        boolean running = true;
         try {
+
             socket = new DatagramSocket();
-            String msg = scanner.next();
-            byte[] requesetMsg = msg.getBytes();
-            DatagramPacket request = new DatagramPacket(requesetMsg,requesetMsg.length,this.serverAddress,serverPort);
-            socket.send(request);
+            socket.setSoTimeout(2000);
+            while (running) {
 
 
-            byte[] responseMsg = new byte[1024];
-            DatagramPacket response = new DatagramPacket(responseMsg,responseMsg.length);
-            socket.receive(response);
-            System.out.println("Msg from: " + response.getAddress() + " Msg: " + new String(response.getData()));
+                String msg = scanner.next();
+                if (msg.equals("TERMINATE")){
+                    running = false;
+                }
 
+                byte[] requesetMsg = msg.getBytes();
+                DatagramPacket request = new DatagramPacket(requesetMsg, requesetMsg.length, this.serverAddress, serverPort);
+                socket.send(request);
+
+                try {
+
+                    byte[] responseMsg = new byte[1024];
+                    DatagramPacket response = new DatagramPacket(responseMsg, responseMsg.length);
+                    socket.receive(response);
+                    System.out.println("Msg from: " + response.getAddress() + " Msg: " + new String(response.getData()).trim());
+                } catch (SocketTimeoutException e) {
+                    System.out.println("Server not responding, try again");
+                }
+            }
         } catch (SocketException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        }finally {
-            if(socket != null) socket.close();
+        } finally {
+            if (socket != null) socket.close();
         }
 
     }
