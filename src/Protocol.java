@@ -48,7 +48,8 @@ public class Protocol {
 
 
         i = input.indexOf(' ');
-        String second = input.substring((input.indexOf((command)+command.length())+1), i);
+        System.out.println("i:" + i);
+        String second = input.substring(command.length() + 1);
         System.out.println("Second word: "+second);
 
         try {
