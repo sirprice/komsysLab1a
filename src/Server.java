@@ -18,12 +18,13 @@ public class Server {
         DatagramSocket udpSocket = null;
         try {
             udpSocket = new DatagramSocket(this.serverPort);
-            byte[] buffer = new byte[1024];
+
             DatagramPacket request;
             boolean runLoop = true;
             ConnectionState clientState = null;
 
             while (runLoop) {
+                byte[] buffer = new byte[1024];
                 request = new DatagramPacket(buffer, buffer.length);
                 udpSocket.receive(request);
                 if (clientState == null) {
@@ -33,6 +34,7 @@ public class Server {
                 clientState.processResult();
                 clientState.respond(udpSocket);
                 clientState = clientState.nextState();
+
             }
 
         } catch (SocketException se) {

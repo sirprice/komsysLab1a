@@ -61,7 +61,12 @@ public class ConectionHandler {
             if (Protocol.isGuessCommand(request)) {
                 Integer guess = Protocol.parseGuess(request);
                 // pars number
+                if (guess == null ) {
+                    setResponse("not a valid guess", request.getAddress(), request.getPort());
+                    return;
+                }
                 String result = game.guess(guess.intValue());
+
                 setResponse(result, request.getAddress(), request.getPort());
             }
         }
