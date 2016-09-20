@@ -7,6 +7,7 @@ import java.net.InetAddress;
  * Created by magnus on 2016-09-09.
  */
 public class ConectionHandler {
+
     public static ConnectionState newState(InetAddress address, int port) {
         StateNewConn stateNewConn = new StateNewConn(address, port);
         return stateNewConn;
@@ -24,12 +25,12 @@ public class ConectionHandler {
                 return;
             }
             setResponse("OK", this.address, this.port);
-            setState(new HandsakeConn(super.address,super.port));
+            setState(new HandshakeConn(super.address,super.port));
         }
     }
 
-    private static class HandsakeConn extends ConnectionStateAbs {
-        public HandsakeConn(InetAddress address, int port)  { super(address,port); }
+    private static class HandshakeConn extends ConnectionStateAbs {
+        public HandshakeConn(InetAddress address, int port)  { super(address,port); }
         @Override
         public void processIncoming(DatagramPacket request) {
             if ( (super.address.equals(request.getAddress()) && super.port == request.getPort()) == false) {
