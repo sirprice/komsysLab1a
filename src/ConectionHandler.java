@@ -33,11 +33,13 @@ public class ConectionHandler {
         public HandshakeConn(InetAddress address, int port)  { super(address,port); }
         @Override
         public void processIncoming(DatagramPacket request) {
+            if(hasTimeout(9000)) {setState(null);return;}
             if ( (super.address.equals(request.getAddress()) && super.port == request.getPort()) == false) {
                 setResponse("BUSY", request.getAddress(), request.getPort());
                 setState(this);
                 return;
             }
+            resetTimeout();
             if (!Protocol.checkMsg("START", request)) {
                 System.out.println("Wrong Protocol tag");
                 setResponse("ERROR", request.getAddress(), request.getPort());
@@ -56,9 +58,11 @@ public class ConectionHandler {
         @Override
         public void processIncoming(DatagramPacket request) {
             setState(this);
+            if(hasTimeout(10000)) {setState(null);return;}
             if (request == null || (super.address.equals(request.getAddress()) && super.port == request.getPort()) == false) {
                 setResponse("BUSY", request.getAddress(), request.getPort());
             }
+            resetTimeout();
             if (Protocol.isGuessCommand(request)) {
                 Integer guess = Protocol.parseGuess(request);
                 // pars number
@@ -93,9 +97,23 @@ public class ConectionHandler {
         protected int port;
         private ConnectionState state = null;
         private DatagramPacket response = null;
+        private long timeoutTimer = 0;
         public ConnectionStateAbs(InetAddress address, int port) {
             this.port = port;
             this.address = address;
+            this.timeoutTimer = System.currentTimeMillis();
+        }
+
+        public boolean hasTimeout(long time) {
+            long diff = System.currentTimeMillis() - timeoutTimer;
+            boolean flag = time < (diff);
+            System.out.println("hasTimeout:flag" + flag + " diff:" + diff);
+            return flag;
+            //return time < (System.currentTimeMillis() - timeoutTimer);
+        }
+
+        public void resetTimeout() {
+            timeoutTimer = System.currentTimeMillis();
         }
 
         public void setResponse(String msg, InetAddress targetAddress, int targetPort) {
