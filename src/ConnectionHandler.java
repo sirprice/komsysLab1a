@@ -98,6 +98,7 @@ public class ConnectionHandler {
             }
             if (request == null || (super.clientAddress.equals(request.getAddress()) && super.clientPort == request.getPort()) == false) {
                 setResponse("BUSY", request.getAddress(), request.getPort());
+                return;
             }
             resetTimeout();
             if (Protocol.isGuessCommand(request)) {
