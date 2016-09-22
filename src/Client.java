@@ -21,27 +21,40 @@ public class Client {
         try {
 
             socket = new DatagramSocket();
-            socket.setSoTimeout(2000);
+            socket.setSoTimeout(3000);
             while (running) {
 
 
                 String msg = scanner.nextLine();
-                if (msg.equals("TERMINATE")){
-                    running = false;
-                }
 
                 byte[] requesetMsg = msg.getBytes();
                 DatagramPacket request = new DatagramPacket(requesetMsg, requesetMsg.length, this.serverAddress, serverPort);
                 socket.send(request);
+                if (msg.equals("TERMINATE")) {
+                    running = false;
+                    break;
+                }
 
                 try {
 
                     byte[] responseMsg = new byte[1024];
                     DatagramPacket response = new DatagramPacket(responseMsg, responseMsg.length);
                     socket.receive(response);
-                    System.out.println("Msg from: " + response.getAddress() + " Msg: " + new String(response.getData()).trim());
+                    String receivedMsg = new String(response.getData()).trim();
+                    if (receivedMsg.equals("TERMINATE")) {
+                        System.out.println("You have timed out from server and your connection to has bean terminated, do you want to reconnect? y/n");
+                        if (!scanner.nextLine().toLowerCase().equals("y")) {
+                            running = false;
+                        }
+                    } else {
+                        System.out.println("Msg from: " + response.getAddress() + " Msg: " + receivedMsg);
+                    }
+
                 } catch (SocketTimeoutException e) {
-                    System.out.println("Server not responding, try again");
+                    System.out.println("Server not responding and may be offline, do you want to try again? y/n");
+                    if (!scanner.nextLine().toLowerCase().equals("y")) {
+                        running = false;
+                    }
                 }
             }
         } catch (SocketException e) {
@@ -51,7 +64,5 @@ public class Client {
         } finally {
             if (socket != null) socket.close();
         }
-
     }
-
 }

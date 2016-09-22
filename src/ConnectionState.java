@@ -7,7 +7,14 @@ import java.net.DatagramSocket;
  */
 public interface ConnectionState {
     void processIncoming(DatagramPacket packet);
+
     void processResult();
+
     void respond(DatagramSocket outSocket) throws IOException;
+
+    boolean hasTimedout();
+
+    void sendMsgToClient(DatagramSocket outSocket, String msg) throws IOException;
+
     ConnectionState nextState();
 }

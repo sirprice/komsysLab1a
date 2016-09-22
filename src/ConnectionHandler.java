@@ -1,3 +1,5 @@
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -6,15 +8,27 @@ import java.net.InetAddress;
 /**
  * Created by magnus on 2016-09-09.
  */
-public class ConectionHandler {
+public class ConnectionHandler {
 
-    public static ConnectionState newState(InetAddress address, int port) {
-        StateNewConn stateNewConn = new StateNewConn(address, port);
-        return stateNewConn;
+    /**
+     * @param address
+     * @param port
+     * @return
+     */
+    public static ConnectionState initialState(InetAddress address, int port) {
+        StateNewConnection initialState = new StateNewConnection(address, port);
+        return initialState;
     }
 
-    private static class StateNewConn extends ConnectionStateAbs {
-        public StateNewConn(InetAddress address, int port) { super(address,port); }
+    /**
+     *
+     */
+    private static class StateNewConnection extends ConnectionStateAbs {
+        private static final int INITIAL_TIMEOUT = 1000;
+
+        public StateNewConnection(InetAddress address, int port) {
+            super(address, port, INITIAL_TIMEOUT);
+        }
 
         @Override
         public void processIncoming(DatagramPacket request) {
@@ -24,17 +38,28 @@ public class ConectionHandler {
                 setState(null);
                 return;
             }
-            setResponse("OK", this.address, this.port);
-            setState(new HandshakeConn(super.address,super.port));
+            setResponse("OK", this.clientAddress, this.clientPort);
+            setState(new StateHandshake(super.clientAddress, super.clientPort));
         }
     }
 
-    private static class HandshakeConn extends ConnectionStateAbs {
-        public HandshakeConn(InetAddress address, int port)  { super(address,port); }
+    /**
+     *
+     */
+    private static class StateHandshake extends ConnectionStateAbs {
+        public static final int HANDSHAKE_TIMEOUT = 9000;
+
+        public StateHandshake(InetAddress address, int port) {
+            super(address, port, HANDSHAKE_TIMEOUT);
+        }
+
         @Override
         public void processIncoming(DatagramPacket request) {
-            if(hasTimeout(9000)) {setState(null);return;}
-            if ( (super.address.equals(request.getAddress()) && super.port == request.getPort()) == false) {
+            if (hasTimedout()) {
+                setState(null);
+                return;
+            }
+            if ((super.clientAddress.equals(request.getAddress()) && super.clientPort == request.getPort()) == false) {
                 setResponse("BUSY", request.getAddress(), request.getPort());
                 setState(this);
                 return;
@@ -44,29 +69,41 @@ public class ConectionHandler {
                 System.out.println("Wrong Protocol tag");
                 setResponse("ERROR", request.getAddress(), request.getPort());
                 setState(null);
-            }else {
+            } else {
                 setResponse("READY", request.getAddress(), request.getPort());
-                setState(new InSession(super.address,super.port));
+                setState(new InSession(super.clientAddress, super.clientPort));
             }
         }
+
     }
 
+    /**
+     *
+     */
     private static class InSession extends ConnectionStateAbs {
+        public static final int SESSION_TIMEOUT = 15000;
+
         private GuessGame game = new GuessGame();
-        public InSession(InetAddress address, int port)  { super(address,port); }
+
+        public InSession(InetAddress address, int port) {
+            super(address, port, SESSION_TIMEOUT);
+        }
 
         @Override
         public void processIncoming(DatagramPacket request) {
             setState(this);
-            if(hasTimeout(10000)) {setState(null);return;}
-            if (request == null || (super.address.equals(request.getAddress()) && super.port == request.getPort()) == false) {
+            if (hasTimedout()) {
+                setState(null);
+                return;
+            }
+            if (request == null || (super.clientAddress.equals(request.getAddress()) && super.clientPort == request.getPort()) == false) {
                 setResponse("BUSY", request.getAddress(), request.getPort());
             }
             resetTimeout();
             if (Protocol.isGuessCommand(request)) {
                 Integer guess = Protocol.parseGuess(request);
                 // pars number
-                if (guess == null ) {
+                if (guess == null) {
                     setResponse("not a valid guess", request.getAddress(), request.getPort());
                     return;
                 }
@@ -77,8 +114,15 @@ public class ConectionHandler {
         }
     }
 
+    /**
+     *
+     */
     private static class ShutDown extends ConnectionStateAbs {
-        public ShutDown(InetAddress address, int port)  { super(address,port); }
+        public static final int SHUTDOWN_TIMEOUT = 2000;
+
+        public ShutDown(InetAddress address, int port) {
+            super(address, port, SHUTDOWN_TIMEOUT);
+        }
 
         @Override
         public void processIncoming(DatagramPacket packet) {
@@ -86,27 +130,44 @@ public class ConectionHandler {
         }
     }
 
-    private static DatagramPacket createPacket(String msg,InetAddress targetAddress, int targetPort) {
+    /**
+     * @param msg
+     * @param targetAddress
+     * @param targetPort
+     * @return
+     */
+    private static DatagramPacket createPacket(String msg, InetAddress targetAddress, int targetPort) {
         if (msg == null || targetAddress == null || targetPort <= 0) return null;
         byte[] responseMsg = msg.getBytes();
         return new DatagramPacket(responseMsg, responseMsg.length, targetAddress, targetPort);
     }
 
-    private static abstract class ConnectionStateAbs implements ConnectionState {
-        protected InetAddress address;
-        protected int port;
+
+    /**
+     *
+     *
+     *
+     *
+     */
+    public static abstract class ConnectionStateAbs implements ConnectionState {
+        protected InetAddress clientAddress;
+        protected int clientPort;
         private ConnectionState state = null;
         private DatagramPacket response = null;
         private long timeoutTimer = 0;
-        public ConnectionStateAbs(InetAddress address, int port) {
-            this.port = port;
-            this.address = address;
+        private long maxTimeout;
+
+        public ConnectionStateAbs(InetAddress clientAddress, int clientPort, long maxTimeout) {
+            this.clientPort = clientPort;
+            this.clientAddress = clientAddress;
             this.timeoutTimer = System.currentTimeMillis();
+            this.maxTimeout = maxTimeout;
         }
 
-        public boolean hasTimeout(long time) {
+        @Override
+        public boolean hasTimedout() {
             long diff = System.currentTimeMillis() - timeoutTimer;
-            boolean flag = time < (diff);
+            boolean flag = maxTimeout < (diff);
             System.out.println("hasTimeout:flag" + flag + " diff:" + diff);
             return flag;
             //return time < (System.currentTimeMillis() - timeoutTimer);
@@ -119,10 +180,14 @@ public class ConectionHandler {
         public void setResponse(String msg, InetAddress targetAddress, int targetPort) {
             this.response = createPacket(msg, targetAddress, targetPort);
         }
-        public void setState(ConnectionState cs) { this.state = cs;}
+
+        public void setState(ConnectionState cs) {
+            this.state = cs;
+        }
 
         @Override
-        public void processResult() {}
+        public void processResult() {
+        }
 
         @Override
         public void respond(DatagramSocket outSocket) throws IOException {
@@ -133,7 +198,14 @@ public class ConectionHandler {
         }
 
         @Override
-        public ConnectionState nextState() { return state; }
+        public void sendMsgToClient(DatagramSocket outSocket, String msg) throws IOException {
+            outSocket.send(createPacket(msg, clientAddress, clientPort));
+        }
+
+        @Override
+        public ConnectionState nextState() {
+            return state;
+        }
     }
 
 }
