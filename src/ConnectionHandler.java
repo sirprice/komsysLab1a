@@ -169,9 +169,7 @@ public class ConnectionHandler {
         public boolean hasTimedout() {
             long diff = System.currentTimeMillis() - timeoutTimer;
             boolean flag = maxTimeout < (diff);
-            System.out.println("hasTimeout:flag" + flag + " diff:" + diff);
             return flag;
-            //return time < (System.currentTimeMillis() - timeoutTimer);
         }
 
         public void resetTimeout() {
