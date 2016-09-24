@@ -14,6 +14,9 @@ public class Client {
         this.serverPort = port;
     }
 
+    /**
+     * Starts the main client loop,
+     */
     public void start() {
         DatagramSocket socket = null;
         Scanner scanner = new Scanner(System.in);

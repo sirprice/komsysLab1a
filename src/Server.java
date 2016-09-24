@@ -37,12 +37,14 @@ public class Server {
                     if (clientState == null) {
                         clientState = ConnectionHandler.initialState(request.getAddress(), request.getPort());
                     }
+                    System.out.println(clientState.toString());
                     clientState.processIncoming(request);
                     clientState.processResult();
                     clientState.respond(udpSocket);
                     clientState = clientState.nextState();
                 } catch (SocketTimeoutException e) {
                     if (clientState != null && clientState.hasTimedout()) {
+                        System.out.println("Client timed out");
                         clientState.sendMsgToClient(udpSocket, TERMINATE);
                         clientState = null;
                     }

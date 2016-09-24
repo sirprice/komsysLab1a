@@ -28,6 +28,7 @@ public class ConnectionHandler {
 
         public StateNewConnection(InetAddress address, int port) {
             super(address, port, INITIAL_TIMEOUT);
+            System.out.println("Entering StateNewConnection:");
         }
 
         @Override
@@ -41,6 +42,11 @@ public class ConnectionHandler {
             setResponse("OK", this.clientAddress, this.clientPort);
             setState(new StateHandshake(super.clientAddress, super.clientPort));
         }
+
+        @Override
+        public String toString() {
+            return "StateNewConnection{}";
+        }
     }
 
     /**
@@ -51,6 +57,7 @@ public class ConnectionHandler {
 
         public StateHandshake(InetAddress address, int port) {
             super(address, port, HANDSHAKE_TIMEOUT);
+            System.out.println("Entering StateHandshake:");
         }
 
         @Override
@@ -75,6 +82,10 @@ public class ConnectionHandler {
             }
         }
 
+        @Override
+        public String toString() {
+            return "StateHandshake{}";
+        }
     }
 
     /**
@@ -87,12 +98,14 @@ public class ConnectionHandler {
 
         public InSession(InetAddress address, int port) {
             super(address, port, SESSION_TIMEOUT);
+            System.out.println("Entering InSession:");
         }
 
         @Override
         public void processIncoming(DatagramPacket request) {
             setState(this);
             if (hasTimedout()) {
+                setResponse("TERMINATE", request.getAddress(), request.getPort());
                 setState(null);
                 return;
             }
@@ -109,11 +122,51 @@ public class ConnectionHandler {
                     return;
                 }
                 String result = game.guess(guess.intValue());
-
+                if (game.gameCompleted()) {
+                    result = result + "! Do you want to play again y/n";
+                    setState(new PlayAgain(super.clientAddress, super.clientPort));
+                }
                 setResponse(result, request.getAddress(), request.getPort());
+            }else {
+                setResponse("not a valid guess command", request.getAddress(), request.getPort());
             }
         }
+
+        @Override
+        public String toString() {
+            return "InSession{}";
+        }
     }
+    private static class PlayAgain extends ConnectionStateAbs {
+        public static final int QUESTION_TIMEOUT = 10000;
+        public PlayAgain(InetAddress address, int port) {
+            super(address, port, QUESTION_TIMEOUT);
+            System.out.println("Entering PlayAgain:");
+        }
+
+        @Override
+        public void processIncoming(DatagramPacket request) {
+            setState(this);
+            if (request == null || (super.clientAddress.equals(request.getAddress()) && super.clientPort == request.getPort()) == false) {
+                setResponse("BUSY", request.getAddress(), request.getPort());
+                return;
+            }
+            if (!Protocol.checkMsg("y", request)) {
+                System.out.println("Wrong Protocol tag");
+                setResponse("TERMINATE", request.getAddress(), request.getPort());
+                setState(null);
+            } else {
+                setResponse("New game", request.getAddress(), request.getPort());
+                setState(new InSession(super.clientAddress, super.clientPort));
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "PlayAgain{}";
+        }
+    }
+
 
     /**
      *
@@ -123,11 +176,18 @@ public class ConnectionHandler {
 
         public ShutDown(InetAddress address, int port) {
             super(address, port, SHUTDOWN_TIMEOUT);
+            System.out.println("Entering PlayAgain:");
         }
 
         @Override
         public void processIncoming(DatagramPacket packet) {
+            setResponse("TERMINATE",super.clientAddress,super.clientPort);
             setState(null);
+        }
+
+        @Override
+        public String toString() {
+            return "ShutDown{}";
         }
     }
 

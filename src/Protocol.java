@@ -3,6 +3,7 @@ import java.util.StringTokenizer;
 
 /**
  * Created by cj on 07/09/16.
+ * This is a utility class with usefull methods
  */
 public class Protocol {
 
@@ -48,6 +49,7 @@ public class Protocol {
         String sp = null;
         StringTokenizer tokenizer = new StringTokenizer(input,delimiter);
         if (!tokenizer.hasMoreTokens()){
+            System.out.println("no more tokens");
             return null;
         }else{
             sp = tokenizer.nextToken();
